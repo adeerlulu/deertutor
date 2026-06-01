@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI English Tutor | Pro Edition</title>
+    <style>
+        :root { --primary: #2563eb; --success: #059669; --warning: #f59e0b; --bg: #f8fafc; }
+        body { font-family: 'Inter', -apple-system, sans-serif; background: var(--bg); margin: 0; display: flex; justify-content: center; height: 100vh; }
+        .app-container { width: 100%; max-width: 800px; display: flex; flex-direction: column; background: white; box-shadow: 0 10px 25px rgba(0,0,0,0.05); }
+        
+        /* Header & Scenarios */
+        header { padding: 20px; border-bottom: 1px solid #e2e8f0; }
+        .scenario-bar { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
+        .btn-s { padding: 6px 12px; border: 1px solid #e2e8f0; border-radius: 20px; cursor: pointer; background: white; font-size: 14px; transition: 0.2s; }
+        .btn-s.active { background: var(--primary); color: white; border-color: var(--primary); }
+
+        /* Chat Log */
+        #chat-log { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 15px; }
+        .msg { max-width: 80%; padding: 12px 16px; border-radius: 12px; line-height: 1.5; position: relative; }
+        .user { align-self: flex-end; background: var(--primary); color: white; border-bottom-right-radius: 2px; }
+        .ai { align-self: flex-start; background: #f1f5f9; color: #1e293b; border-bottom-left-radius: 2px; }
+        .correction { display: block; font-size: 13px; color: #b45309; font-style: italic; margin-bottom: 4px; border-left: 3px solid #f59e0b; padding-left: 8px; }
+        .save-btn { background: none; border: none; cursor: pointer; font-size: 16px; margin-left: 10px; opacity: 0.5; }
+        .save-btn:hover { opacity: 1; }
+
+        /* Controls */
+        .input-area { padding: 20px; border-top: 1px solid #e2e8f0; background: white; }
+        .input-row { display: flex; gap: 10px; }
+        input[type="text"] { flex: 1; padding: 12px; border: 1px solid #e2e8f0; border-radius: 8px; outline: none; }
+        .keyword-input { width: 100%; margin-bottom: 10px; font-size: 12px; padding: 8px; border: 1px dashed #cbd5e1; border-radius: 4px; }
+        
+        /* Notebook Sidebar */
+        #notebook { position: fixed; right: -300px; top: 0; width: 300px; height: 100%; background: white; box-shadow: -5px 0 15px rgba(0,0,0,0.1); transition: 0.3s; padding: 20px; z-index: 100; overflow-y: auto; }
+        #notebook.open { right: 0; }
+        .note-item { padding: 10px; border-bottom: 1px solid #eee; font-size: 14px; position: relative; }
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+    <header>
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h2 style="margin:0;">🇬🇧 AI Tutor</h2>
+            <button class="btn-s" onclick="toggleNotebook()">📒 Notebook</button>
+        </div>
+        <div class="scenario-bar" id="scenario-bar">
+            <button class="btn-s active" onclick="setScenario('Daily Life', this)">🏠 Daily</button>
+            <button class="btn-s" onclick="setScenario('Job Interview', this)">💼 Interview</button>
+            <button class="btn-s" onclick="setScenario('Stock Market', this)">📈 Stock</button>
+            <button class="btn-s" onclick="setScenario('Travel & Pottery', this)">✈️ Travel</button>
+        </div>
+    </header>
+
+    <div id="chat-log">
+        <div class="msg ai">Hello! I'm your English tutor. Choose a scenario and let's start chatting!</div>
+    </div>
+
+    <div class="input-area">
+        <input type="text" id="keywords" class="keyword-input" placeholder="Optional: Enter keywords (e.g. photography, coffee, design)...">
+        <div class="input-row">
+            <input type="text" id="user-input" placeholder="Type your message here..." onkeypress="if(event.key==='Enter') sendMessage()">
+            <button onclick="sendMessage()" style="background:var(--primary); color:white; border:none; padding:10px 20px; border-radius:8px; cursor:pointer;">Send</button>
+            <button id="mic-btn" style="background:var(--success); color:white; border:none; padding:10px; border-radius:8px; cursor:pointer;">🎤</button>
+        </div>
+    </div>
+</div>
+
+<div id="notebook">
+    <div style="display: flex; justify-content: space-between;">
+        <h3>Saved Sentences</h3>
+        <button onclick="toggleNotebook()">Close</button>
+    </div>
+    <div id="notes-list"></div>
+</div>
+
+<script>
+    let currentScenario = "Daily Life";
+    let savedNotes = JSON.parse(localStorage.getItem('eng_notes')) || [];
+
+    function setScenario(s, btn) {
+        currentScenario = s;
+        document.querySelectorAll('.btn-s').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        appendMessage('ai', `System: Switched to [${s}] mode. How can I help you today?`);
+    }
+
+    async function sendMessage() {
+        const input = document.getElementById('user-input');
+        const text = input.value.trim();
+        if(!text) return;
+
+        appendMessage('user', text);
+        input.value = '';
+
+        // --- 注意：這裡應接入真正的 AI API (如 Gemini API) ---
+        // 目前暫時用模擬回覆，讓你測試介面
+        const mockResponse = `[Correction: ${text.includes('go') ? 'Perfect!' : 'Keep going!'}] That's very interesting! Tell me more about your thoughts on ${currentScenario}.`;
+        
+        setTimeout(() => {
+            appendMessage('ai', mockResponse);
+        }, 600);
+    }
+
+    function appendMessage(role, text) {
+        const log = document.getElementById('chat-log');
+        const div = document.createElement('div');
+        div.className = `msg ${role}`;
+
+        if(role === 'ai' && text.includes('[')) {
+            const parts = text.split(']');
+            const correction = parts[0].replace('[', '');
+            const content = parts[1];
+            div.innerHTML = `<span class="correction">💡 ${correction}</span> ${content} 
+                             <button class="save-btn" onclick="saveNote('${content.trim().replace(/'/g, "\\'")}')">⭐</button>`;
+            
+            if(correction.includes('Perfect')) {
+                // 這裡可以觸發灑花特效
+                console.log("Sparkle!");
+            }
+            speak(content);
+        } else {
+            div.innerText = text;
+        }
+
+        log.appendChild(div);
+        log.scrollTop = log.scrollHeight;
+    }
+
+    function saveNote(txt) {
+        if(!savedNotes.includes(txt)) {
+            savedNotes.push(txt);
+            localStorage.setItem('eng_notes', JSON.stringify(savedNotes));
+            renderNotes();
+            alert("Saved to notebook!");
+        }
+    }
+
+    function renderNotes() {
+        const list = document.getElementById('notes-list');
+        list.innerHTML = savedNotes.map((n, i) => `
+            <div class="note-item">
+                ${n} <button onclick="deleteNote(${i})" style="color:red; border:none; background:none; cursor:pointer;">Delete</button>
+            </div>
+        `).join('');
+    }
+
+    function deleteNote(i) {
+        savedNotes.splice(i, 1);
+        localStorage.setItem('eng_notes', JSON.stringify(savedNotes));
+        renderNotes();
+    }
+
+    function toggleNotebook() {
+        document.getElementById('notebook').classList.toggle('open');
+        renderNotes();
+    }
+
+    function speak(txt) {
+        const u = new SpeechSynthesisUtterance(txt);
+        u.lang = 'en-US';
+        speechSynthesis.speak(u);
+    }
+
+    // 語音辨識
+    const Speech = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if(Speech) {
+        const rec = new Speech();
+        document.getElementById('mic-btn').onclick = () => rec.start();
+        rec.onresult = (e) => {
+            document.getElementById('user-input').value = e.results[0][0].transcript;
+            sendMessage();
+        };
+    }
+</script>
+
+</body>
+</html>
