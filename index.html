@@ -52,7 +52,7 @@
         .btn-s.active { background: var(--sidebar-bg); color: white; border-color: var(--sidebar-bg); }
 
         /* 對話紀錄 */
-        #chat-log { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 15px; }
+        #chat-log { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 15px; scroll-behavior: smooth; }
         .msg { max-width: 75%; padding: 14px 18px; border-radius: 12px; line-height: 1.6; font-size: 15px; }
         .user { align-self: flex-end; background: var(--primary); color: white; border-bottom-right-radius: 2px; }
         .ai { align-self: flex-start; background: #f1f5f9; color: var(--text-dark); border-bottom-left-radius: 2px; }
@@ -60,6 +60,11 @@
         
         .save-btn { background: none; border: none; cursor: pointer; font-size: 16px; margin-left: 10px; opacity: 0.4; transition: 0.2s; }
         .save-btn:hover { opacity: 1; transform: scale(1.1); }
+
+        /* Loading 動畫 */
+        .loading { font-style: italic; color: #64748b; }
+        .loading::after { content: '...'; animation: dots 1.5s steps(4, end) infinite; }
+        @keyframes dots { 0%, 20% { color: transparent; text-shadow: 0.25em 0 0 transparent, 0.5em 0 0 transparent; } 40% { color: #64748b; text-shadow: 0.25em 0 0 transparent, 0.5em 0 0 transparent; } 60% { text-shadow: 0.25em 0 0 #64748b, 0.5em 0 0 transparent; } 80%, 100% { text-shadow: 0.25em 0 0 #64748b, 0.5em 0 0 #64748b; } }
 
         /* 輸入區塊 */
         .input-area { padding: 20px; border-top: 1px solid var(--border-color); background: white; }
@@ -75,10 +80,11 @@
 
         /* 右側筆記本側邊欄 (與 Portal 佈局融合) */
         .notebook-panel { width: 300px; background: white; border-radius: 12px; border: 1px solid var(--border-color); box-shadow: 0 4px 15px rgba(0,0,0,0.03); display: flex; flex-direction: column; }
-        .notebook-header { padding: 18px 20px; border-bottom: 1px solid var(--border-color); background: #fafafa; border-radius: 12px 12px 0 0; font-weight: 600; color: var(--text-dark); display: flex; justify-content: space-between; }
+        .notebook-header { padding: 18px 20px; border-bottom: 1px solid var(--border-color); background: #fafafa; border-radius: 12px 12px 0 0; font-weight: 600; color: var(--text-dark); display: flex; justify-content: space-between; align-items: center; }
         #notes-list { flex: 1; overflow-y: auto; padding: 10px; margin: 0; list-style: none; }
         .note-item { padding: 12px; border-bottom: 1px solid #f1f5f9; font-size: 14px; line-height: 1.5; color: #475569; position: relative; }
-        .delete-btn { color: #ef4444; font-size: 12px; border: none; background: #fee2e2; padding: 4px 8px; border-radius: 4px; cursor: pointer; margin-top: 8px; float: right; }
+        .delete-btn { color: #ef4444; font-size: 12px; border: none; background: #fee2e2; padding: 4px 8px; border-radius: 4px; cursor: pointer; margin-top: 8px; float: right; transition: 0.2s; }
+        .delete-btn:hover { background: #ef4444; color: white; }
     </style>
 </head>
 <body>
@@ -91,7 +97,7 @@
         <li><a href="#" class="active"><span class="icon">💬</span> AI Tutor</a></li>
         <li><a href="#"><span class="icon">📊</span> Grades</a></li>
         <li><a href="#"><span class="icon">📅</span> Schedule</a></li>
-        <li><a href="#"><span class="icon">⚙️</span> Settings</a></li>
+        <li><a href="#" onclick="clearAPIKey()"><span class="icon">⚙️</span> Reset API Key</a></li>
     </ul>
 </nav>
 
@@ -115,7 +121,7 @@
             </div>
 
             <div id="chat-log">
-                <div class="msg ai">Welcome to MyCampus AI Tutor! Please select a scenario or just say hello to start your practice.</div>
+                <div class="msg ai">Welcome to MyCampus AI Tutor! Please select a scenario or just say hello to start your practice. <br><br><span style="font-size:0.85em; color:#666;">(Note: On your first message, you will be prompted to enter your Gemini API Key.)</span></div>
             </div>
 
             <div class="input-area">
@@ -147,6 +153,7 @@
     // 初始化載入筆記
     window.onload = () => renderNotes();
 
+    // 切換情境
     function setScenario(s, btn) {
         currentScenario = s;
         document.querySelectorAll('.btn-s').forEach(b => b.classList.remove('active'));
@@ -154,55 +161,123 @@
         appendMessage('ai', `System: Mode switched to [${s}]. Let's start!`);
     }
 
+    // 發送訊息並呼叫 Gemini API
     async function sendMessage() {
         const input = document.getElementById('user-input');
         const text = input.value.trim();
+        const keywords = document.getElementById('keywords').value.trim();
         if(!text) return;
 
+        // 1. 顯示使用者的訊息
         appendMessage('user', text);
         input.value = '';
 
-        // 模擬 AI 思考延遲與回覆 (請在此替換為真實 API)
-        const mockResponse = `[Correction: ${text.includes('go') ? 'Perfect!' : 'Consider checking your verbs.'}] That sounds like an exciting part of ${currentScenario}. Tell me more!`;
-        
-        setTimeout(() => {
-            appendMessage('ai', mockResponse);
-        }, 800);
+        // 2. 檢查並獲取 API Key
+        let apiKey = localStorage.getItem('gemini_api_key');
+        if (!apiKey) {
+            apiKey = prompt("為了讓 AI 開始運作，請輸入您的 Google Gemini API Key：\n（此金鑰僅會安全地儲存於您的瀏覽器中）");
+            if (apiKey && apiKey.trim() !== "") {
+                localStorage.setItem('gemini_api_key', apiKey.trim());
+            } else {
+                appendMessage('ai', "System: 您需要輸入 API Key 才能與 AI 對話喔！請重新整理網頁再試一次。");
+                return;
+            }
+        }
+
+        // 3. 顯示 Loading 狀態
+        const log = document.getElementById('chat-log');
+        const loadingDiv = document.createElement('div');
+        loadingDiv.className = 'msg ai loading';
+        loadingDiv.id = 'loading-msg';
+        loadingDiv.innerText = 'AI is thinking';
+        log.appendChild(loadingDiv);
+        log.scrollTop = log.scrollHeight;
+
+        // 4. 設定系統提示詞 (System Prompt)
+        const systemPrompt = `You are a friendly and professional English tutor. 
+        Current Scenario: ${currentScenario}. 
+        Focus Keywords: ${keywords}. 
+        Rule 1: If my English sentence has grammar, spelling, or vocabulary mistakes, you MUST correct it at the very beginning of your response using exactly this format: [Correction: (your correction)]. 
+        Rule 2: If my sentence is perfectly correct, you MUST start your response with exactly: [Perfect!]. 
+        Rule 3: After the correction or praise, continue the conversation naturally based on the scenario in 1 to 2 short sentences.`;
+
+        // 5. 發送請求至 Gemini API
+        try {
+            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    contents: [
+                        { role: "user", parts: [{ text: systemPrompt + "\n\nUser said: " + text }] }
+                    ]
+                })
+            });
+
+            const data = await response.json();
+            
+            // 移除 Loading 狀態
+            document.getElementById('loading-msg').remove();
+
+            // 處理 API 錯誤
+            if (data.error) {
+                // 如果是權限錯誤 (400/403)，可能是 Key 填錯了，將其清除
+                if (data.error.code === 400 || data.error.code === 403) {
+                    localStorage.removeItem('gemini_api_key');
+                }
+                appendMessage('ai', `System Error: ${data.error.message} <br><br>(提示：可能是 API Key 無效，請檢查後重試。)`);
+                return;
+            }
+
+            // 取得並顯示 AI 回覆
+            const aiText = data.candidates[0].content.parts[0].text;
+            appendMessage('ai', aiText);
+
+        } catch (error) {
+            document.getElementById('loading-msg').remove();
+            appendMessage('ai', "System: 連線失敗，請檢查網路連線。");
+        }
     }
 
+    // 將訊息加入對話框 (包含解析糾正格式)
     function appendMessage(role, text) {
         const log = document.getElementById('chat-log');
         const div = document.createElement('div');
         div.className = `msg ${role}`;
 
         if(role === 'ai' && text.includes('[')) {
+            // 解析 [Correction: xxx] 格式
             const parts = text.split(']');
-            const correction = parts[0].replace('[', '');
-            const content = parts[1];
-            
-            div.innerHTML = `
-                <span class="correction">💡 ${correction}</span> 
-                <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <span>${content}</span>
-                    <button class="save-btn" onclick="saveNote('${content.trim().replace(/'/g, "\\'")}')" title="Save to Notes">⭐</button>
-                </div>
-            `;
-            speak(content);
+            if (parts.length > 1) {
+                const correction = parts[0].replace('[', '');
+                const content = parts.slice(1).join(']').trim(); // 確保後面的內容如果有中括號不會被吃掉
+                
+                div.innerHTML = `
+                    <span class="correction">💡 ${correction}</span> 
+                    <div style="display:flex; justify-content:space-between; align-items:flex-end; gap: 10px;">
+                        <span>${content}</span>
+                        <button class="save-btn" onclick="saveNote('${content.replace(/'/g, "\\'")}')" title="Save to Notes">⭐</button>
+                    </div>
+                `;
+                speak(content); // 語音朗讀
+            } else {
+                div.innerText = text;
+            }
         } else {
-            div.innerText = text;
+            div.innerHTML = text; // 允許顯示包含 HTML 的系統訊息
         }
 
         log.appendChild(div);
         log.scrollTop = log.scrollHeight;
     }
 
+    // --- 筆記本功能 ---
     function saveNote(txt) {
         if(!savedNotes.includes(txt)) {
             savedNotes.push(txt);
             localStorage.setItem('mycampus_eng_notes', JSON.stringify(savedNotes));
             renderNotes();
         } else {
-            alert("This sentence is already in your notes!");
+            alert("這句話已經在筆記本裡囉！");
         }
     }
 
@@ -212,7 +287,7 @@
         list.innerHTML = savedNotes.map((n, i) => `
             <li class="note-item">
                 ${n} 
-                <div style="overflow:auto;"><button class="delete-btn" onclick="deleteNote(${i})">Delete</button></div>
+                <div style="overflow:auto; margin-top:5px;"><button class="delete-btn" onclick="deleteNote(${i})">Delete</button></div>
             </li>
         `).join('');
     }
@@ -223,13 +298,23 @@
         renderNotes();
     }
 
+    // 重新設定 API Key (綁定在左側選單的 Settings 模擬按鈕)
+    function clearAPIKey() {
+        if(confirm("確定要清除目前儲存的 API Key 嗎？清除後下次對話需重新輸入。")) {
+            localStorage.removeItem('gemini_api_key');
+            alert("API Key 已清除！");
+        }
+    }
+
+    // --- 語音功能 ---
     function speak(txt) {
-        const u = new SpeechSynthesisUtterance(txt);
+        // 確保不會念出星號等標記符號
+        const cleanTxt = txt.replace(/\*/g, '');
+        const u = new SpeechSynthesisUtterance(cleanTxt);
         u.lang = 'en-US';
         speechSynthesis.speak(u);
     }
 
-    // 語音辨識 STT
     const Speech = window.SpeechRecognition || window.webkitSpeechRecognition;
     if(Speech) {
         const rec = new Speech();
@@ -245,7 +330,10 @@
         };
         rec.onspeechend = () => {
             document.getElementById('mic-btn').style.background = '#10b981';
-        }
+        };
+        rec.onerror = () => {
+            document.getElementById('mic-btn').style.background = '#10b981';
+        };
     }
 </script>
 
