@@ -3,86 +3,155 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI English Tutor | Pro Edition</title>
+    <title>MyCampus | AI English Tutor</title>
     <style>
-        :root { --primary: #2563eb; --success: #059669; --warning: #f59e0b; --bg: #f8fafc; }
-        body { font-family: 'Inter', -apple-system, sans-serif; background: var(--bg); margin: 0; display: flex; justify-content: center; height: 100vh; }
-        .app-container { width: 100%; max-width: 800px; display: flex; flex-direction: column; background: white; box-shadow: 0 10px 25px rgba(0,0,0,0.05); }
-        
-        /* Header & Scenarios */
-        header { padding: 20px; border-bottom: 1px solid #e2e8f0; }
-        .scenario-bar { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
-        .btn-s { padding: 6px 12px; border: 1px solid #e2e8f0; border-radius: 20px; cursor: pointer; background: white; font-size: 14px; transition: 0.2s; }
-        .btn-s.active { background: var(--primary); color: white; border-color: var(--primary); }
+        /* CSS 變數定義：參考日系大學 Portal 配色 */
+        :root { 
+            --sidebar-bg: #002D62; /* 海軍藍 */
+            --sidebar-hover: #004085;
+            --sidebar-active: #e2e8f0;
+            --primary: #2563eb; 
+            --bg-color: #f4f6f9; /* 淺灰背景 */
+            --text-dark: #333333;
+            --border-color: #e2e8f0;
+        }
 
-        /* Chat Log */
+        body { font-family: 'Inter', 'Noto Sans TC', sans-serif; background: var(--bg-color); margin: 0; display: flex; height: 100vh; overflow: hidden; }
+        
+        /* === 左側選單 (Sidebar) === */
+        .sidebar { width: 260px; background: var(--sidebar-bg); color: white; display: flex; flex-direction: column; box-shadow: 2px 0 10px rgba(0,0,0,0.1); z-index: 10; }
+        .sidebar-brand { padding: 25px 20px; font-size: 22px; font-weight: bold; border-bottom: 1px solid rgba(255,255,255,0.1); letter-spacing: 1px; display: flex; align-items: center; gap: 10px; }
+        .sidebar-menu { list-style: none; padding: 15px 0; margin: 0; flex: 1; }
+        .sidebar-menu li { margin: 5px 15px; }
+        .sidebar-menu a {
+            display: flex; align-items: center; gap: 12px; padding: 12px 15px; color: rgba(255,255,255,0.8); 
+            text-decoration: none; border-radius: 8px; transition: 0.2s; font-size: 15px;
+        }
+        .sidebar-menu a:hover { background: var(--sidebar-hover); color: white; }
+        .sidebar-menu a.active { background: white; color: var(--sidebar-bg); font-weight: bold; }
+        
+        /* 替換 Icon 提示：將以下 span 內的 emoji 換成 SVG 即可 */
+        .icon { font-size: 18px; display: inline-block; width: 24px; text-align: center; }
+
+        /* === 右側主內容區 === */
+        .main-content { flex: 1; display: flex; flex-direction: column; }
+        
+        /* 頂部導覽列 (Top Bar) */
+        .top-bar { background: white; height: 60px; display: flex; align-items: center; justify-content: space-between; padding: 0 30px; box-shadow: 0 2px 5px rgba(0,0,0,0.02); border-bottom: 1px solid var(--border-color); }
+        .page-title { font-size: 18px; color: var(--text-dark); font-weight: 600; margin: 0; }
+        .user-profile { display: flex; align-items: center; gap: 10px; font-size: 14px; color: #666; }
+        .avatar { width: 32px; height: 32px; background: #cbd5e1; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; color: white; }
+
+        /* 中間對話區塊 */
+        .content-wrapper { padding: 30px; flex: 1; display: flex; gap: 20px; overflow: hidden; }
+        .chat-card { flex: 1; background: white; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); display: flex; flex-direction: column; border: 1px solid var(--border-color); overflow: hidden; }
+        
+        /* 情境選擇 */
+        .scenario-bar { padding: 15px 20px; border-bottom: 1px solid var(--border-color); background: #fafafa; display: flex; gap: 10px; }
+        .btn-s { padding: 6px 14px; border: 1px solid #d1d5db; border-radius: 20px; cursor: pointer; background: white; font-size: 13px; color: #4b5563; transition: 0.2s; }
+        .btn-s.active { background: var(--sidebar-bg); color: white; border-color: var(--sidebar-bg); }
+
+        /* 對話紀錄 */
         #chat-log { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 15px; }
-        .msg { max-width: 80%; padding: 12px 16px; border-radius: 12px; line-height: 1.5; position: relative; }
+        .msg { max-width: 75%; padding: 14px 18px; border-radius: 12px; line-height: 1.6; font-size: 15px; }
         .user { align-self: flex-end; background: var(--primary); color: white; border-bottom-right-radius: 2px; }
-        .ai { align-self: flex-start; background: #f1f5f9; color: #1e293b; border-bottom-left-radius: 2px; }
-        .correction { display: block; font-size: 13px; color: #b45309; font-style: italic; margin-bottom: 4px; border-left: 3px solid #f59e0b; padding-left: 8px; }
-        .save-btn { background: none; border: none; cursor: pointer; font-size: 16px; margin-left: 10px; opacity: 0.5; }
-        .save-btn:hover { opacity: 1; }
-
-        /* Controls */
-        .input-area { padding: 20px; border-top: 1px solid #e2e8f0; background: white; }
-        .input-row { display: flex; gap: 10px; }
-        input[type="text"] { flex: 1; padding: 12px; border: 1px solid #e2e8f0; border-radius: 8px; outline: none; }
-        .keyword-input { width: 100%; margin-bottom: 10px; font-size: 12px; padding: 8px; border: 1px dashed #cbd5e1; border-radius: 4px; }
+        .ai { align-self: flex-start; background: #f1f5f9; color: var(--text-dark); border-bottom-left-radius: 2px; }
+        .correction { display: block; font-size: 13px; color: #b45309; font-style: italic; margin-bottom: 6px; border-left: 3px solid #f59e0b; padding-left: 10px; background: #fffbeb; padding-top: 4px; padding-bottom: 4px; border-radius: 0 4px 4px 0; }
         
-        /* Notebook Sidebar */
-        #notebook { position: fixed; right: -300px; top: 0; width: 300px; height: 100%; background: white; box-shadow: -5px 0 15px rgba(0,0,0,0.1); transition: 0.3s; padding: 20px; z-index: 100; overflow-y: auto; }
-        #notebook.open { right: 0; }
-        .note-item { padding: 10px; border-bottom: 1px solid #eee; font-size: 14px; position: relative; }
+        .save-btn { background: none; border: none; cursor: pointer; font-size: 16px; margin-left: 10px; opacity: 0.4; transition: 0.2s; }
+        .save-btn:hover { opacity: 1; transform: scale(1.1); }
+
+        /* 輸入區塊 */
+        .input-area { padding: 20px; border-top: 1px solid var(--border-color); background: white; }
+        .input-row { display: flex; gap: 10px; }
+        input[type="text"] { flex: 1; padding: 12px 15px; border: 1px solid #cbd5e1; border-radius: 8px; outline: none; font-size: 15px; transition: 0.2s; }
+        input[type="text"]:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(37,99,235,0.1); }
+        .keyword-input { width: 100%; margin-bottom: 12px; font-size: 13px; padding: 10px; border: 1px dashed #cbd5e1; border-radius: 6px; box-sizing: border-box; }
+        
+        button.action-btn { background: var(--primary); color: white; border: none; padding: 0 24px; border-radius: 8px; cursor: pointer; font-weight: 600; transition: 0.2s; }
+        button.action-btn:hover { background: #1d4ed8; }
+        button.mic-btn { background: #10b981; color: white; border: none; padding: 0 20px; border-radius: 8px; cursor: pointer; font-size: 18px; transition: 0.2s; }
+        button.mic-btn:hover { background: #059669; }
+
+        /* 右側筆記本側邊欄 (與 Portal 佈局融合) */
+        .notebook-panel { width: 300px; background: white; border-radius: 12px; border: 1px solid var(--border-color); box-shadow: 0 4px 15px rgba(0,0,0,0.03); display: flex; flex-direction: column; }
+        .notebook-header { padding: 18px 20px; border-bottom: 1px solid var(--border-color); background: #fafafa; border-radius: 12px 12px 0 0; font-weight: 600; color: var(--text-dark); display: flex; justify-content: space-between; }
+        #notes-list { flex: 1; overflow-y: auto; padding: 10px; margin: 0; list-style: none; }
+        .note-item { padding: 12px; border-bottom: 1px solid #f1f5f9; font-size: 14px; line-height: 1.5; color: #475569; position: relative; }
+        .delete-btn { color: #ef4444; font-size: 12px; border: none; background: #fee2e2; padding: 4px 8px; border-radius: 4px; cursor: pointer; margin-top: 8px; float: right; }
     </style>
 </head>
 <body>
 
-<div class="app-container">
-    <header>
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-            <h2 style="margin:0;">🇬🇧 AI Tutor</h2>
-            <button class="btn-s" onclick="toggleNotebook()">📒 Notebook</button>
-        </div>
-        <div class="scenario-bar" id="scenario-bar">
-            <button class="btn-s active" onclick="setScenario('Daily Life', this)">🏠 Daily</button>
-            <button class="btn-s" onclick="setScenario('Job Interview', this)">💼 Interview</button>
-            <button class="btn-s" onclick="setScenario('Stock Market', this)">📈 Stock</button>
-            <button class="btn-s" onclick="setScenario('Travel & Pottery', this)">✈️ Travel</button>
+<nav class="sidebar">
+    <div class="sidebar-brand">
+        <span class="icon">🎓</span> MyCampus
+    </div>
+    <ul class="sidebar-menu">
+        <li><a href="#" class="active"><span class="icon">💬</span> AI Tutor</a></li>
+        <li><a href="#"><span class="icon">📊</span> Grades</a></li>
+        <li><a href="#"><span class="icon">📅</span> Schedule</a></li>
+        <li><a href="#"><span class="icon">⚙️</span> Settings</a></li>
+    </ul>
+</nav>
+
+<main class="main-content">
+    
+    <header class="top-bar">
+        <h1 class="page-title">AI English Speaking Practice</h1>
+        <div class="user-profile">
+            <span>Student User</span>
+            <div class="avatar">S</div>
         </div>
     </header>
 
-    <div id="chat-log">
-        <div class="msg ai">Hello! I'm your English tutor. Choose a scenario and let's start chatting!</div>
-    </div>
+    <div class="content-wrapper">
+        
+        <div class="chat-card">
+            <div class="scenario-bar">
+                <button class="btn-s active" onclick="setScenario('Campus Life', this)">🏫 Campus</button>
+                <button class="btn-s" onclick="setScenario('Job Search', this)">💼 Job Search</button>
+                <button class="btn-s" onclick="setScenario('Free Talk', this)">☕ Free Talk</button>
+            </div>
 
-    <div class="input-area">
-        <input type="text" id="keywords" class="keyword-input" placeholder="Optional: Enter keywords (e.g. photography, coffee, design)...">
-        <div class="input-row">
-            <input type="text" id="user-input" placeholder="Type your message here..." onkeypress="if(event.key==='Enter') sendMessage()">
-            <button onclick="sendMessage()" style="background:var(--primary); color:white; border:none; padding:10px 20px; border-radius:8px; cursor:pointer;">Send</button>
-            <button id="mic-btn" style="background:var(--success); color:white; border:none; padding:10px; border-radius:8px; cursor:pointer;">🎤</button>
+            <div id="chat-log">
+                <div class="msg ai">Welcome to MyCampus AI Tutor! Please select a scenario or just say hello to start your practice.</div>
+            </div>
+
+            <div class="input-area">
+                <input type="text" id="keywords" class="keyword-input" placeholder="Optional: Enter focus keywords (e.g., presentation, semester, grammar)...">
+                <div class="input-row">
+                    <input type="text" id="user-input" placeholder="Type your English response..." onkeypress="if(event.key==='Enter') sendMessage()">
+                    <button class="action-btn" onclick="sendMessage()">Send</button>
+                    <button class="mic-btn" id="mic-btn" title="Click to speak">🎤</button>
+                </div>
+            </div>
         </div>
-    </div>
-</div>
 
-<div id="notebook">
-    <div style="display: flex; justify-content: space-between;">
-        <h3>Saved Sentences</h3>
-        <button onclick="toggleNotebook()">Close</button>
+        <div class="notebook-panel">
+            <div class="notebook-header">
+                <span>📒 Review Notes</span>
+                <span style="font-size: 12px; color: #888; font-weight: normal;" id="note-count">0 items</span>
+            </div>
+            <ul id="notes-list">
+                </ul>
+        </div>
+
     </div>
-    <div id="notes-list"></div>
-</div>
+</main>
 
 <script>
-    let currentScenario = "Daily Life";
-    let savedNotes = JSON.parse(localStorage.getItem('eng_notes')) || [];
+    let currentScenario = "Campus Life";
+    let savedNotes = JSON.parse(localStorage.getItem('mycampus_eng_notes')) || [];
+
+    // 初始化載入筆記
+    window.onload = () => renderNotes();
 
     function setScenario(s, btn) {
         currentScenario = s;
         document.querySelectorAll('.btn-s').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
-        appendMessage('ai', `System: Switched to [${s}] mode. How can I help you today?`);
+        appendMessage('ai', `System: Mode switched to [${s}]. Let's start!`);
     }
 
     async function sendMessage() {
@@ -93,13 +162,12 @@
         appendMessage('user', text);
         input.value = '';
 
-        // --- 注意：這裡應接入真正的 AI API (如 Gemini API) ---
-        // 目前暫時用模擬回覆，讓你測試介面
-        const mockResponse = `[Correction: ${text.includes('go') ? 'Perfect!' : 'Keep going!'}] That's very interesting! Tell me more about your thoughts on ${currentScenario}.`;
+        // 模擬 AI 思考延遲與回覆 (請在此替換為真實 API)
+        const mockResponse = `[Correction: ${text.includes('go') ? 'Perfect!' : 'Consider checking your verbs.'}] That sounds like an exciting part of ${currentScenario}. Tell me more!`;
         
         setTimeout(() => {
             appendMessage('ai', mockResponse);
-        }, 600);
+        }, 800);
     }
 
     function appendMessage(role, text) {
@@ -111,13 +179,14 @@
             const parts = text.split(']');
             const correction = parts[0].replace('[', '');
             const content = parts[1];
-            div.innerHTML = `<span class="correction">💡 ${correction}</span> ${content} 
-                             <button class="save-btn" onclick="saveNote('${content.trim().replace(/'/g, "\\'")}')">⭐</button>`;
             
-            if(correction.includes('Perfect')) {
-                // 這裡可以觸發灑花特效
-                console.log("Sparkle!");
-            }
+            div.innerHTML = `
+                <span class="correction">💡 ${correction}</span> 
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <span>${content}</span>
+                    <button class="save-btn" onclick="saveNote('${content.trim().replace(/'/g, "\\'")}')" title="Save to Notes">⭐</button>
+                </div>
+            `;
             speak(content);
         } else {
             div.innerText = text;
@@ -130,29 +199,27 @@
     function saveNote(txt) {
         if(!savedNotes.includes(txt)) {
             savedNotes.push(txt);
-            localStorage.setItem('eng_notes', JSON.stringify(savedNotes));
+            localStorage.setItem('mycampus_eng_notes', JSON.stringify(savedNotes));
             renderNotes();
-            alert("Saved to notebook!");
+        } else {
+            alert("This sentence is already in your notes!");
         }
     }
 
     function renderNotes() {
         const list = document.getElementById('notes-list');
+        document.getElementById('note-count').innerText = `${savedNotes.length} items`;
         list.innerHTML = savedNotes.map((n, i) => `
-            <div class="note-item">
-                ${n} <button onclick="deleteNote(${i})" style="color:red; border:none; background:none; cursor:pointer;">Delete</button>
-            </div>
+            <li class="note-item">
+                ${n} 
+                <div style="overflow:auto;"><button class="delete-btn" onclick="deleteNote(${i})">Delete</button></div>
+            </li>
         `).join('');
     }
 
     function deleteNote(i) {
         savedNotes.splice(i, 1);
-        localStorage.setItem('eng_notes', JSON.stringify(savedNotes));
-        renderNotes();
-    }
-
-    function toggleNotebook() {
-        document.getElementById('notebook').classList.toggle('open');
+        localStorage.setItem('mycampus_eng_notes', JSON.stringify(savedNotes));
         renderNotes();
     }
 
@@ -162,15 +229,23 @@
         speechSynthesis.speak(u);
     }
 
-    // 語音辨識
+    // 語音辨識 STT
     const Speech = window.SpeechRecognition || window.webkitSpeechRecognition;
     if(Speech) {
         const rec = new Speech();
-        document.getElementById('mic-btn').onclick = () => rec.start();
+        rec.lang = 'en-US';
+        document.getElementById('mic-btn').onclick = () => {
+            rec.start();
+            document.getElementById('mic-btn').style.background = '#ef4444'; // 錄音時變紅
+        };
         rec.onresult = (e) => {
             document.getElementById('user-input').value = e.results[0][0].transcript;
+            document.getElementById('mic-btn').style.background = '#10b981'; // 恢復綠色
             sendMessage();
         };
+        rec.onspeechend = () => {
+            document.getElementById('mic-btn').style.background = '#10b981';
+        }
     }
 </script>
 
